@@ -35,6 +35,10 @@
       <h2>Expenses</h2>
       <canvas id="expensesChart"></canvas>
     </div>
+    <h2>Expenses</h2>
+    <div id="expenses-list">
+      <!-- Expenses will be loaded here -->
+    </div>
 
     <!-- Latest Transactions -->
     <div class="section" id="transactions-section">
@@ -108,7 +112,6 @@
         <!-- Expenses will be dynamically loaded here -->
       </ul>
     </div>
-
   </div>
 
   <script>
@@ -223,75 +226,34 @@
       .catch(error => console.error('Error calculating finance advice:', error));
     });
   
-   
-// Handle expense form submission
-document.getElementById('expenseForm').addEventListener('submit', function(event) {
-  event.preventDefault();
-
-  const date = document.getElementById('expenseDate').value;
-  const amount = parseFloat(document.getElementById('expenseAmount').value);
-  const description = document.getElementById('expenseDescription').value;
-
-  fetch('/api/expenses', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ date, amount, description })
-  })
-  .then(response => response.json())
-  .then(data => {
-    if (data.success) {
-      // Add new expense to the transactions list
-      const transactionsList = document.getElementById('transactionsList');
-      const li = document.createElement('li');
-      li.textContent = `${data.date} - ${data.description}: $${data.amount}`;
-      transactionsList.insertBefore(li, transactionsList.firstChild);
-
-      // Clear the form
-      document.getElementById('expenseForm').reset();
-    } else {
-      console.error('Error adding expense:', data.message);
-    }
-  })
-  .catch(error => console.error('Error adding expense:', error));
-});
-
-// Function to update the expenses chart
-function updateExpensesChart() {
-  fetch('/api/expenses')
-    .then(response => response.json())
-    .then(expenses => {
-      const ctx = document.getElementById('expensesChart').getContext('2d');
-      const expensesData = {
-        labels: expenses.map(e => e.category),
-        datasets: [{
-          label: 'Expenses',
-          data: expenses.map(e => e.amount),
-          backgroundColor: 'rgba(75, 192, 192, 0.2)',
-          borderColor: 'rgba(75, 192, 192, 1)',
-          borderWidth: 1
-        }]
-      };
-      new Chart(ctx, {
-        type: 'bar',
-        data: expensesData,
-        options: {
-          scales: {
-            y: {
-              beginAtZero: true
-            }
-          }
-        }
-      });
-    })
-    .catch(error => console.error('Error fetching expenses:', error));
-}
-
-// Initial load of expenses chart
-updateExpensesChart();
-
-
+    // Handle expense form submission
+    document.getElementById('expenseForm').addEventListener('submit', function(event) {
+      event.preventDefault();
+  
+      const date = document.getElementById('expenseDate').value;
+      const amount = parseFloat(document.getElementById('expenseAmount').value);
+      const description = document.getElementById('expenseDescription').value;
+  
+      fetch('/api/expenses', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ date, amount, description })
+      })
+      .then(response => response.json())
+      .then(data => {
+        // Add new expense to the transactions list
+        const transactionsList = document.getElementById('transactionsList');
+        const li = document.createElement('li');
+        li.textContent = `${data.date} - ${data.description}: $${data.amount}`;
+        transactionsList.insertBefore(li, transactionsList.firstChild);
+  
+        // Clear the form
+        document.getElementById('expenseForm').reset();
+      })
+      .catch(error => console.error('Error adding expense:', error));
+    });
   
     // Logout functionality
     document.getElementById('logoutBtn').addEventListener('click', () => {
@@ -299,81 +261,28 @@ updateExpensesChart();
         .then(() => window.location.href = 'login.html')
         .catch(error => console.error('Error logging out:', error));
     });
-  </script>
-  
+    document.addEventListener('DOMContentLoaded', () => {
+      fetch('/api/expenses')
+        .then(response => response.json())
+        .then(expenses => {
+          const expensesList = document.getElementById('expenses-list');
+          expensesList.innerHTML = ''; // Clear previous content
 
-  <style>
-    /* Header and Navigation Styling */
-    header {
-      background-color: #333;
-      color: white;
-      padding: 10px 0;
-      position: fixed; /* Fix the header at the top */
-      width: 100%; /* Make sure it takes full width */
-      top: 0; /* Position it at the top */
-      left: 0; /* Align it to the left edge */
-      z-index: 1000; /* Ensure it's above other content */
-    }
-    nav ul {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      text-align: center;
-    }
-    nav ul li {
-      display: inline;
-      margin-right: 20px;
-    }
-    nav ul li a, nav ul li button {
-      color: white;
-      text-decoration: none;
-      font-weight: bold;
-      background: none;
-      border: none;
-      cursor: pointer;
-    }
-    nav ul li a:hover, nav ul li button:hover {
-      text-decoration: underline;
-    }
-  
-    /* Container styling */
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 20px;
-      padding-top: 60px; /* Add padding-top to account for fixed header */
-    }
-  
-    /* Section styling */
-    .section {
-      margin-bottom: 20px;
-    }
-  
-    /* Form styling */
-    form {
-      margin-bottom: 20px;
-    }
-    label {
-      display: block;
-      margin-bottom: 5px;
-    }
-    input {
-      margin-bottom: 10px;
-      padding: 5px;
-      width: 100%;
-      box-sizing: border-box;
-    }
-    button {
-      padding: 10px 15px;
-      background-color: #28a745;
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #218838;
-    }
-  </style>
-  
+          expenses.forEach(expense => {
+            const expenseItem = document.createElement('div');
+            expenseItem.innerHTML = `
+              <p>Date: ${expense.date}</p>
+              <p>Description: ${expense.description}</p>
+              <p>Amount: $${expense.amount}</p>
+              <hr>
+            `;
+            expensesList.appendChild(expenseItem);
+          });
+        })
+        .catch(error => {
+          console.error('Error fetching expenses:', error);
+        });
+    });
+  </script>
 </body>
 </html>
