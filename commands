@@ -1,0 +1,64 @@
+-- Create the database
+CREATE DATABASE IF NOT EXISTS finance_advisor;
+USE finance_advisor;
+
+-- Create users table
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL
+);
+
+-- Create expenses table
+CREATE TABLE IF NOT EXISTS expenses (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    description VARCHAR(255) NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    date DATE NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- Create transactions table
+CREATE TABLE IF NOT EXISTS transactions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    description VARCHAR(255) NOT NULL,
+    date DATE NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- Create bills table (optional)
+CREATE TABLE IF NOT EXISTS bills (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    description VARCHAR(255) NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    due_date DATE NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+        ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- Add indexes for performance
+CREATE INDEX idx_user_id_expenses ON expenses(user_id);
+CREATE INDEX idx_user_id_transactions ON transactions(user_id);
+
+-- Insert a test user (password is hashed using bcrypt)
+INSERT INTO users (username, email, password)
+VALUES ('testuser', 'testuser@example.com', '$2a$10$7b3f0hPgrgvsSKvbwn/jIezuFbQdmXyCnJ4d7Uurxt6A/GRp.vZfa'); -- Hashed password
+
+-- Insert a test expense for the user
+INSERT INTO expenses (user_id, description, amount, date)
+VALUES (1, 'Groceries', 50.00, '2024-09-14');
+
+-- Insert a test transaction for the user
+INSERT INTO transactions (user_id, amount, description, date)
+VALUES (1, 50.00, 'Groceries', '2024-09-14');
+
+-- Insert a test bill for the user (optional)
+INSERT INTO bills (user_id, description, amount, due_date)
+VALUES (1, 'Electricity Bill', 100.00, '2024-09-30');
