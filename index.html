@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finance Advisor</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <h1 class="title">Personal Finance Advisor</h1>
+    
+    <div class="advisor">
+      <p>Enter your monthly salary and loan amount:</p>
+      <input type="number" id="salaryInput" placeholder="Monthly Salary (in $)" />
+      <input type="number" id="loanInput" placeholder="Loan Amount (in $)" />
+      <button id="calculateBtn">Get Advice</button>
+    </div>
+
+    <div id="responseBox" class="response-box">
+      <p id="responseText"></p>
+    </div>
+  </div>
+  
+  <script src="script.js"></script>
+</body>
+</html>

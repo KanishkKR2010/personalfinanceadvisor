@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Finance Advisor</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <!-- Header with Navigation -->
+  <header>
+    <nav>
+      <ul>
+        <li><a href="index.html">Home</a></li>
+        <li><a href="contact.html">Contact</a></li>
+        <li><a href="dashboard.html">Dashboard</a></li>
+        <li><a href="login.html" id="logoutBtn">Log Out</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <div class="container">
+    <h1>Welcome to Your Dashboard</h1>
+
+    <!-- User Information -->
+    <div class="user-info">
+      <h2>User Information</h2>
+      <p><strong>Username:</strong> <span id="username">Loading...</span></p>
+      <p><strong>Email:</strong> <span id="email">Loading...</span></p>
+    </div>
+
+    <!-- Expenses with Graph -->
+    <div class="section" id="expenses-section">
+      <h2>Expenses</h2>
+      <canvas id="expensesChart"></canvas>
+    </div>
+
+    <!-- Latest Transactions -->
+    <div class="section" id="transactions-section">
+      <h2>Latest Transactions</h2>
+      <ul id="transactionsList">
+        <!-- Latest transactions will be dynamically loaded here -->
+      </ul>
+    </div>
+
+    <!-- Bills -->
+    <div class="section" id="bills-section">
+      <h2>Bills</h2>
+      <ul id="billsList">
+        <!-- Bills will be dynamically loaded here -->
+      </ul>
+    </div>
+
+    <!-- Are You Overspending? -->
+    <div class="section" id="overspending-section">
+      <h2>Are You Overspending?</h2>
+      <p id="overspendingMessage">Calculating...</p>
+    </div>
+
+    <!-- Courses -->
+    <div class="courses">
+      <h2>Your Enrolled Courses</h2>
+      <ul id="coursesList">
+        <!-- Course data will be dynamically loaded here -->
+      </ul>
+    </div>
+
+    <!-- Progress -->
+    <div class="progress">
+      <h2>Your Progress</h2>
+      <div id="progressSection">
+        <!-- User's course progress will be dynamically displayed here -->
+      </div>
+    </div>
+
+    <!-- Finance Calculator -->
+    <div class="finance-calculator">
+      <h2>Finance Calculator</h2>
+      <form id="financeForm">
+        <label for="salaryInput">Monthly Salary (in $):</label>
+        <input type="number" id="salaryInput" name="salary" required>
+
+        <label for="loanInput">Loan Amount (in $):</label>
+        <input type="number" id="loanInput" name="loan" required>
+
+        <button type="submit">Get Advice</button>
+      </form>
+      <div id="responseText"></div>
+    </div>
+
+    <!-- Daily Expenses -->
+    <div class="daily-expenses">
+      <h2>Daily Expenses</h2>
+      <form id="expenseForm">
+        <label for="expenseDate">Date:</label>
+        <input type="date" id="expenseDate" name="date" required>
+
+        <label for="expenseAmount">Amount (in $):</label>
+        <input type="number" id="expenseAmount" name="amount" required>
+
+        <label for="expenseDescription">Description:</label>
+        <input type="text" id="expenseDescription" name="description" required>
+
+        <button type="submit">Add Expense</button>
+      </form>
+      <ul id="expenseList">
+        <!-- Expenses will be dynamically loaded here -->
+      </ul>
+    </div>
+
+  </div>
+
+  <script>
+    // Fetch user information from the server
+    fetch('/api/user')
+      .then(response => response.json())
+      .then(data => {
+        if (data.username) {
+          document.getElementById('username').textContent = data.username;
+          document.getElementById('email').textContent = data.email;
+        } else {
+          window.location.href = 'login.html'; // Redirect to login if no user data
+        }
+      })
+      .catch(error => console.error('Error fetching user data:', error));
+  
+    // Fetch user's expenses
+    fetch('/api/expenses')
+      .then(response => response.json())
+      .then(expenses => {
+        const ctx = document.getElementById('expensesChart').getContext('2d');
+        const expensesData = {
+          labels: expenses.map(e => e.category),
+          datasets: [{
+            label: 'Expenses',
+            data: expenses.map(e => e.amount),
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            borderColor: 'rgba(75, 192, 192, 1)',
+            borderWidth: 1
+          }]
+        };
+        new Chart(ctx, {
+          type: 'bar',
+          data: expensesData,
+          options: {
+            scales: {
+              y: {
+                beginAtZero: true
+              }
+            }
+          }
+        });
+      })
+      .catch(error => console.error('Error fetching expenses:', error));
+  
+    // Fetch latest transactions
+    function loadTransactions() {
+      fetch('/api/transactions')
+        .then(response => response.json())
+        .then(transactions => {
+          const transactionsList = document.getElementById('transactionsList');
+          transactionsList.innerHTML = ''; // Clear the list
+          transactions.forEach(tx => {
+            const li = document.createElement('li');
+            li.textContent = `${tx.date} - ${tx.description}: $${tx.amount}`;
+            transactionsList.appendChild(li);
+          });
+        })
+        .catch(error => console.error('Error fetching transactions:', error));
+    }
+    
+    loadTransactions(); // Initial load of transactions
+  
+    // Fetch bills
+    fetch('/api/bills')
+      .then(response => response.json())
+      .then(bills => {
+        const billsList = document.getElementById('billsList');
+        bills.forEach(bill => {
+          const li = document.createElement('li');
+          li.textContent = `${bill.description} - Due: ${bill.dueDate} - $${bill.amount}`;
+          billsList.appendChild(li);
+        });
+      })
+      .catch(error => console.error('Error fetching bills:', error));
+  
+    // Check if overspending
+    fetch('/api/expenses')
+      .then(response => response.json())
+      .then(expenses => {
+        const totalIncome = 1500; // Example income
+        const totalExpenses = expenses.reduce((acc, e) => acc + e.amount, 0);
+        const ratio = totalExpenses / totalIncome;
+  
+        const overspendingMessage = document.getElementById('overspendingMessage');
+        if (ratio > 0.5) {
+          overspendingMessage.textContent = 'You are overspending! Consider revising your budget.';
+        } else {
+          overspendingMessage.textContent = 'Your spending is within budget.';
+        }
+      })
+      .catch(error => console.error('Error calculating overspending:', error));
+  
+    // Handle finance form submission
+    document.getElementById('financeForm').addEventListener('submit', function(event) {
+      event.preventDefault();
+  
+      const salary = parseFloat(document.getElementById('salaryInput').value);
+      const loan = parseFloat(document.getElementById('loanInput').value);
+  
+      fetch('/api/finance/advice', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ salary, loan })
+      })
+      .then(response => response.json())
+      .then(data => {
+        document.getElementById('responseText').textContent = data.advice;
+      })
+      .catch(error => console.error('Error calculating finance advice:', error));
+    });
+  
+   
+// Handle expense form submission
+document.getElementById('expenseForm').addEventListener('submit', function(event) {
+  event.preventDefault();
+
+  const date = document.getElementById('expenseDate').value;
+  const amount = parseFloat(document.getElementById('expenseAmount').value);
+  const description = document.getElementById('expenseDescription').value;
+
+  fetch('/api/expenses', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ date, amount, description })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      // Add new expense to the transactions list
+      const transactionsList = document.getElementById('transactionsList');
+      const li = document.createElement('li');
+      li.textContent = `${data.date} - ${data.description}: $${data.amount}`;
+      transactionsList.insertBefore(li, transactionsList.firstChild);
+
+      // Clear the form
+      document.getElementById('expenseForm').reset();
+    } else {
+      console.error('Error adding expense:', data.message);
+    }
+  })
+  .catch(error => console.error('Error adding expense:', error));
+});
+
+// Function to update the expenses chart
+function updateExpensesChart() {
+  fetch('/api/expenses')
+    .then(response => response.json())
+    .then(expenses => {
+      const ctx = document.getElementById('expensesChart').getContext('2d');
+      const expensesData = {
+        labels: expenses.map(e => e.category),
+        datasets: [{
+          label: 'Expenses',
+          data: expenses.map(e => e.amount),
+          backgroundColor: 'rgba(75, 192, 192, 0.2)',
+          borderColor: 'rgba(75, 192, 192, 1)',
+          borderWidth: 1
+        }]
+      };
+      new Chart(ctx, {
+        type: 'bar',
+        data: expensesData,
+        options: {
+          scales: {
+            y: {
+              beginAtZero: true
+            }
+          }
+        }
+      });
+    })
+    .catch(error => console.error('Error fetching expenses:', error));
+}
+
+// Initial load of expenses chart
+updateExpensesChart();
+
+
+  
+    // Logout functionality
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      fetch('/logout', { method: 'POST' })
+        .then(() => window.location.href = 'login.html')
+        .catch(error => console.error('Error logging out:', error));
+    });
+  </script>
+  
+
+  <style>
+    /* Header and Navigation Styling */
+    header {
+      background-color: #333;
+      color: white;
+      padding: 10px 0;
+      position: fixed; /* Fix the header at the top */
+      width: 100%; /* Make sure it takes full width */
+      top: 0; /* Position it at the top */
+      left: 0; /* Align it to the left edge */
+      z-index: 1000; /* Ensure it's above other content */
+    }
+    nav ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+    }
+    nav ul li {
+      display: inline;
+      margin-right: 20px;
+    }
+    nav ul li a, nav ul li button {
+      color: white;
+      text-decoration: none;
+      font-weight: bold;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+    nav ul li a:hover, nav ul li button:hover {
+      text-decoration: underline;
+    }
+  
+    /* Container styling */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      padding-top: 60px; /* Add padding-top to account for fixed header */
+    }
+  
+    /* Section styling */
+    .section {
+      margin-bottom: 20px;
+    }
+  
+    /* Form styling */
+    form {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+    }
+    input {
+      margin-bottom: 10px;
+      padding: 5px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    button {
+      padding: 10px 15px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #218838;
+    }
+  </style>
+  
+</body>
+</html>
