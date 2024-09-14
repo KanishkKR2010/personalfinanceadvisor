@@ -17,7 +17,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({
   secret: 'your_secret_key', // Replace with a strong secret
   resave: false,
-  saveUninitialized: true
+  saveUninitialized: true,
+  cookie: { maxAge: 24 * 60 * 60 * 1000 } // 24 hours
 }));
 
 // MySQL connection setup
@@ -32,7 +33,6 @@ connection.connect(err => {
   if (err) throw err;
   console.log('Connected to MySQL database');
 });
-
 
 // Serve the login page as the default route
 app.get('/', (req, res) => {
@@ -57,29 +57,16 @@ app.get('/dashboard.html', (req, res) => {
   }
 });
 
-// API to get all courses
-app.get('/api/courses', (req, res) => {
-  connection.query('SELECT * FROM courses', (err, results) => {
-    if (err) {
-      console.error(err);
-      res.status(500).send('Server error');
-      return;
-    }
-    res.json(results);
-  });
-});
-
-// API to get a single course by ID
-app.get('/api/courses/:id', (req, res) => {
-  const courseId = req.params.id;
-  connection.query('SELECT * FROM courses WHERE id = ?', [courseId], (err, result) => {
-    if (err) {
-      console.error(err);
-      res.status(500).send('Server error');
-      return;
-    }
-    res.json(result[0]);
-  });
+// API to get user information
+app.get('/api/user', (req, res) => {
+  if (req.session.user) {
+    res.json({
+      username: req.session.user.username,
+      email: req.session.user.email
+    });
+  } else {
+    res.status(401).json({ error: 'Unauthorized' });
+  }
 });
 
 // API for user signup
@@ -130,59 +117,65 @@ app.post('/login', (req, res) => {
   });
 });
 
-// API to enroll a user in a course
-app.post('/enroll', (req, res) => {
-  const { userId, courseId } = req.body;
-
-  connection.query(
-    'INSERT INTO enrollments (user_id, course_id) VALUES (?, ?)',
-    [userId, courseId],
-    (err) => {
+// API to get all expenses
+app.get('/api/expenses', (req, res) => {
+  if (req.session.user) {
+    connection.query('SELECT * FROM expenses WHERE user_id = ?', [req.session.user.id], (err, results) => {
       if (err) {
         console.error(err);
         res.status(500).send('Server error');
         return;
       }
-      res.send('Enrollment successful');
-    }
-  );
+      res.json(results);
+    });
+  } else {
+    res.status(401).json({ error: 'Unauthorized' });
+  }
 });
 
-// API to get user progress for a specific course
-app.get('/api/progress/:courseId', (req, res) => {
-  const { userId } = req.query; // User ID from client (could be passed via session)
-  const { courseId } = req.params;
+// API to add a new expense
+app.post('/api/expenses', (req, res) => {
+  if (req.session.user) {
+    const { date, amount, description } = req.body;
 
-  connection.query(
-    'SELECT progress FROM progress WHERE user_id = ? AND course_id = ?',
-    [userId, courseId],
-    (err, result) => {
-      if (err) {
-        console.error(err);
-        res.status(500).send('Server error');
-        return;
+    connection.query(
+      'INSERT INTO expenses (user_id, date, amount, description) VALUES (?, ?, ?, ?)',
+      [req.session.user.id, date, amount, description],
+      (err, results) => {
+        if (err) {
+          console.error(err);
+          res.status(500).send('Server error');
+          return;
+        }
+
+        // Send the new expense data back to the client
+        res.json({
+          success: true,
+          date,
+          description,
+          amount
+        });
       }
-      res.json(result[0] || { progress: 0 });
-    }
-  );
+    );
+  } else {
+    res.status(401).json({ error: 'Unauthorized' });
+  }
 });
 
-// API to update user progress for a specific course
-app.post('/api/progress/update', (req, res) => {
-  const { userId, courseId, progress } = req.body;
-
-  connection.query(
-    'UPDATE progress SET progress = ?, completed = ? WHERE user_id = ? AND course_id = ?',
-    [progress, progress === 100, userId, courseId],
-    (err) => {
+// API to get latest transactions
+app.get('/api/transactions', (req, res) => {
+  if (req.session.user) {
+    connection.query('SELECT * FROM transactions WHERE user_id = ?', [req.session.user.id], (err, results) => {
       if (err) {
         console.error(err);
         res.status(500).send('Server error');
         return;
       }
-      res.send('Progress updated');
-    }
-  );
+      res.json(results);
+    });
+  } else {
+    res.status(401).json({ error: 'Unauthorized' });
+  }
 });
 
 // Logout endpoint
@@ -198,15 +191,4 @@ app.post('/logout', (req, res) => {
 // Start the server
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}/`);
-});
-// API to get user information
-app.get('/api/user', (req, res) => {
-  if (req.session.user) {
-    res.json({
-      username: req.session.user.username,
-      email: req.session.user.email
-    });
-  } else {
-    res.status(401).json({ error: 'Unauthorized' });
-  }
 });
